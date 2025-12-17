@@ -3,76 +3,102 @@
 
 import rospy
 import actionlib
+import yaml
+import os
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from actionlib_msgs.msg import GoalStatus
 
-class DynamicNavigator:
+class WaypointNavigator:
     def __init__(self):
-        rospy.init_node('kobuki_dynamic_navigation')
+        rospy.init_node('kobuki_waypoint_navigation')
         
-        # Move Base İstemcisini Başlat
+        # Move Base İstemcisi
         self.client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
         rospy.loginfo("Navigasyon sistemi (move_base) bekleniyor... Lütfen bekleyin.")
         self.client.wait_for_server()
-        rospy.loginfo("Sistem Hazır! Robot emir bekliyor. 🚀")
+        rospy.loginfo("Sistem Hazır! YAML Dosyası okunuyor... 📂")
 
-    def send_goal(self, x, y, w=1.0):
-        # Hedef mesajını oluştur
+    def load_mission_from_yaml(self):
+        """
+        YAML dosyasını script'in bulunduğu konuma göre dinamik olarak bulur.
+        """
+        try:
+            # 1. Şu an çalışan scriptin klasörünü bul (.../scripts/)
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            
+            # 2. Bir üst klasöre çık (Paket kök dizini)
+            package_root = os.path.dirname(script_dir)
+            
+            # 3. Config klasörüne gir
+            file_path = os.path.join(package_root, "config", "gorev_listesi.yaml")
+            
+            rospy.loginfo(f"Dosya yolu şurada aranıyor: {file_path}")
+
+            with open(file_path, 'r') as file:
+                data = yaml.safe_load(file)
+                rospy.loginfo(f"YAML başarıyla yüklendi! ✅")
+                return data
+        except Exception as e:
+            rospy.logerr(f"YAML dosyası okunamadı! Hata: {e}")
+            return None
+
+    def send_goal(self, x, y):
         goal = MoveBaseGoal()
         goal.target_pose.header.frame_id = "map"
         goal.target_pose.header.stamp = rospy.Time.now()
         
-        # Koordinatları ata
+        # Koordinatlar
         goal.target_pose.pose.position.x = float(x)
         goal.target_pose.pose.position.y = float(y)
         goal.target_pose.pose.position.z = 0.0
         
-        # Yönelim (1.0 = Düz duruş, istersen değiştirebilirsin)
-        goal.target_pose.pose.orientation.w = w
+        # Yönelim (Düz duruş)
+        goal.target_pose.pose.orientation.w = 1.0 
         goal.target_pose.pose.orientation.z = 0.0
 
-        # Gönder
-        rospy.loginfo(f"Hedef Gönderildi: X={x}, Y={y}")
+        rospy.loginfo(f"➡️  Hedefe Gidiliyor: X={x}, Y={y}")
         self.client.send_goal(goal)
         
-        # Robot gidene kadar bekle (Blokla)
-        rospy.loginfo("Robot hareket halinde...")
+        # Robot gidene kadar bekle
         self.client.wait_for_result()
         
         # Sonucu kontrol et
-        state = self.client.get_state()
-        if state == GoalStatus.SUCCEEDED:
+        if self.client.get_state() == GoalStatus.SUCCEEDED:
             rospy.loginfo("✅ HEDEFE VARILDI!")
             return True
         else:
             rospy.logwarn("❌ HEDEFE GİDİLEMEDİ! (Engel olabilir)")
             return False
 
-    def start_loop(self):
-        while not rospy.is_shutdown():
-            print("\n--------------------------------")
-            print("yeni Hedef Girin (Çıkmak için 'q' basın)")
+    def start_mission(self):
+        # 1. YAML Dosyasını Yükle
+        mission_data = self.load_mission_from_yaml()
+        if not mission_data:
+            return # Dosya yoksa dur
+
+        # NOT: initial_pose kısmı kaldırıldı.
+        
+        # 2. Waypoint Listesini YAML'dan al ve gez
+        if 'waypoints' in mission_data:
+            waypoints = mission_data['waypoints']
             
-            try:
-                x_input = input("Hedef X: ")
-                if x_input.lower() == 'q':
-                    break
+            print(f"\n🚀 TOPLAM {len(waypoints)} HEDEF VAR.")
+            
+            for i, point in enumerate(waypoints):
+                print(f"\n--- Hedef {i+1} / {len(waypoints)} ---")
+                # YAML listesi [x, y] formatında
+                self.send_goal(point[0], point[1])
                 
-                y_input = input("Hedef Y: ")
-                if y_input.lower() == 'q':
-                    break
-                
-                # Koordinatları gönder
-                self.send_goal(x_input, y_input)
-                
-            except ValueError:
-                print("Lütfen geçerli bir sayı girin!")
-            except Exception as e:
-                print(f"Hata oluştu: {e}")
+                # Her hedefe varınca 1 saniye bekle
+                rospy.sleep(1)
+
+            print("\n🏆 TÜM GÖREVLER TAMAMLANDI! 🏆")
+        else:
+            rospy.logerr("YAML dosyasında 'waypoints' listesi bulunamadı!")
 
 if __name__ == '__main__':
     try:
-        navigator = DynamicNavigator()
-        navigator.start_loop()
+        navigator = WaypointNavigator()
+        navigator.start_mission()
     except rospy.ROSInterruptException:
         pass
