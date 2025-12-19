@@ -201,6 +201,11 @@ install(DIRECTORY launch/
 install(DIRECTORY maps/
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/maps
 )
+
+# Eski param satırını sil veya değiştir, yerine bunu koy:
+install(DIRECTORY config/
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/config
+)
 #############
 ## Testing ##
 #############

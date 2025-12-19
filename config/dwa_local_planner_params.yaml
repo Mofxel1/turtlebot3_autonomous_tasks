@@ -1,0 +1,38 @@
+DWAPlannerROS:
+  # Hız Ayarları (İleri-Geri sorununu çözer)
+  max_vel_x: 0.22
+  min_vel_x: 0.0      # Geri gitmeye izin verme ama durabilsin
+  max_vel_trans: 0.22
+  min_vel_trans: 0.01 # 0.0 değil! Çok küçük bir hız ver ki motor tetiklensin
+  max_vel_theta: 1.5  # Dönüş hızı
+  min_vel_theta: 0.4
+
+  # İvme (Hızlanma) Ayarları - ÇOK ÖNEMLİ
+  # Çok yüksekse robot "zıplar", çok düşükse kalkamaz.
+  acc_lim_x: 1.5      
+  acc_lim_theta: 2.5 
+  acc_lim_trans: 1.5
+
+  # Simülasyon (Görüş)
+  sim_time: 2.0       # 1.5 azdı, 2.0 ile önünü daha iyi görsün
+  vx_samples: 15      # İşlemcin rahatladığı için bunu artırabiliriz (daha akıllı olur)
+  vtheta_samples: 30
+  sim_granularity: 0.05
+
+  # Hedef Toleransı (Robot hedefe gelince dans etmesin)
+  xy_goal_tolerance: 0.15
+  yaw_goal_tolerance: 0.20
+  latch_xy_goal_tolerance: false
+
+  # YOL PLANLAMA MANTIĞI (Tak-Tak Çözümü Burası)
+  # Path (Çizgi) Bias'ı düşür, Goal (Hedef) Bias'ı artır.
+  path_distance_bias: 20.0  # (Eski: 32.0) Çizgiye takıntılı olma
+  goal_distance_bias: 24.0  # (Eski: 20.0) Hedefe gitmeye odaklan
+  occdist_scale: 0.02       # Engellerden kaçınma dengesi
+  forward_point_distance: 0.325
+
+  # Robot yavaşlarken titremesin
+  scaling_speed: 0.25
+  max_scaling_factor: 0.2
+  stop_time_buffer: 0.2
+  oscillation_reset_dist: 0.05 # Takılınca ne kadar gidip resetlesin?
